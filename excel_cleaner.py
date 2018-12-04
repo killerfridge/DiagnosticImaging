@@ -1,6 +1,7 @@
 import datetime as dt
 import openpyxl as xl
 import pandas as pd
+from os import remove
 
 
 def clean_sheet(wb: xl.Workbook, sheet_name: str)->(dt.datetime, str):
@@ -30,24 +31,59 @@ def clean_sheet(wb: xl.Workbook, sheet_name: str)->(dt.datetime, str):
 
 if __name__ == '__main__':
 
+    # Load the DID spreadsheet from NHS Digital
+
     file = xl.load_workbook('data\\Tables-1a-1l-2017-18-Modality-Provider-Counts-XLSX-222KB (1).xlsx')
 
+    # Initialise a list to contain the datetime/sheet_name tuples
+
     date_sheet_pairs = []
+
+    # loop through the sheets (ignoring the title sheet) and clean the sheet using clean_sheet()
 
     for sheet in file.sheetnames[1:]:
         date_sheet_pairs.append(clean_sheet(file, sheet))
 
+    # save the file as a temp file
+
     file.save('data\\temp_file.xlsx')
+
+    # Close file
+
     file.close()
+
+    # initialised the DataFrame list
 
     df_list = []
 
+    # Loop through the date/sheet_name pairs, and create a DataFrame for each
+    # Append each DataFrame to the list
+
     for date, sheet in date_sheet_pairs:
         temp_df = pd.read_excel('data\\temp_file.xlsx', sheet_name=sheet)
+        # Use the date part from the tuple to add a new field 'Period' to the DataFrame
         temp_df['Period'] = date
         df_list.append(temp_df)
 
+    # Combine all the dataframes
+
     df = pd.concat(df_list, axis=0)
-    df.dropna(subset=['Provider Name'])
+
+    # Remove any missing numbers
+
+    df.dropna(subset=['Provider Name'], inplace=True)
+
+    # Fill any NA fields with 0
+
+    df.fillna(0, inplace=True)
+
+    # save the temporary DataFrame as an excel file
+
     df.to_excel('data\\df.xlsx')
+
+    # delete the temporary excel file
+
+    remove('data\\temp_file.xlsx')
+
+
 
