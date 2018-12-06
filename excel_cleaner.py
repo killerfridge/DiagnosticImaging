@@ -22,11 +22,33 @@ def clean_sheet(wb: xl.Workbook, sheet_name: str)->(dt.datetime, str):
     worksheet.unmerge_cells('C3:F4')  # un-merge the title cells
 
     worksheet.delete_rows(15, 16)  # delete the in-between rows
-    worksheet.delete_rows(1,13)  # delete the title rows
+    worksheet.delete_rows(1, 13)  # delete the title rows
 
     worksheet.delete_cols(1)  # delete the bumper column
 
     return date, sheet_name
+
+
+def temp_file_to_dataframe(file_name: str, date_sheet_pairs: list)->pd.DataFrame:
+
+    df_list = []
+
+    for _date, sheet_name in date_sheet_pairs:
+        temp_df = pd.read_excel(file_name, sheet_name=sheet_name)
+        temp_df['Period'] = _date
+        df_list.append(temp_df)
+
+    df_ = pd.concat(df_list)
+    df_.dropna(subset=['Provider Name'], inplace=True)
+    df_.iloc[:, 3:12] = df_.iloc[:, 3:12].apply(pd.to_numeric, errors='coerce')
+    return df_
+
+
+def map_stp(dataframe: pd.DataFrame, stp_map: str)->pd.DataFrame:
+
+    map_df = pd.read_excel(stp_map)
+    temp_df = pd.merge(dataframe, map_df, left_on='Org Code', right_on='NHS ID code', how='inner')
+    return temp_df
 
 
 if __name__ == '__main__':
@@ -37,12 +59,12 @@ if __name__ == '__main__':
 
     # Initialise a list to contain the datetime/sheet_name tuples
 
-    date_sheet_pairs = []
+    ds_pairs = []
 
     # loop through the sheets (ignoring the title sheet) and clean the sheet using clean_sheet()
 
     for sheet in file.sheetnames[1:]:
-        date_sheet_pairs.append(clean_sheet(file, sheet))
+        ds_pairs.append(clean_sheet(file, sheet))
 
     # save the file as a temp file
 
@@ -52,38 +74,11 @@ if __name__ == '__main__':
 
     file.close()
 
-    # initialised the DataFrame list
+    df = temp_file_to_dataframe('data\\temp_file.xlsx', ds_pairs)
+    df = map_stp(df, 'data\\STP Map.xlsx')
 
-    df_list = []
-
-    # Loop through the date/sheet_name pairs, and create a DataFrame for each
-    # Append each DataFrame to the list
-
-    for date, sheet in date_sheet_pairs:
-        temp_df = pd.read_excel('data\\temp_file.xlsx', sheet_name=sheet)
-        # Use the date part from the tuple to add a new field 'Period' to the DataFrame
-        temp_df['Period'] = date
-        df_list.append(temp_df)
-
-    # Combine all the dataframes
-
-    df = pd.concat(df_list, axis=0)
-
-    # Remove any missing numbers
-
-    df.dropna(subset=['Provider Name'], inplace=True)
-
-    # Fill any NA fields with 0
-
-    df.fillna(0, inplace=True)
-
-    # save the temporary DataFrame as an excel file
-
-    df.to_excel('data\\df.xlsx')
+    df.to_excel(f'data\\df {dt.date.today()}.xlsx')
 
     # delete the temporary excel file
 
     remove('data\\temp_file.xlsx')
-
-
-
