@@ -40,13 +40,16 @@ def temp_file_to_dataframe(file_name: str, date_sheet_pairs: list)->pd.DataFrame
 
     df_ = pd.concat(df_list)
     df_.dropna(subset=['Provider Name'], inplace=True)
-    df_.iloc[:, 3:12] = df_.iloc[:, 3:12].apply(pd.to_numeric, errors='coerce')
+    error_cols = [x for x in df_.columns if 'org code' not in x.lower() and 'period' not in x.lower()]
+    df_.loc[:, error_cols] = df_.loc[:, error_cols].apply(pd.to_numeric, errors='coerce')
     return df_
 
 
 def map_stp(dataframe: pd.DataFrame, stp_map: str)->pd.DataFrame:
 
     map_df = pd.read_excel(stp_map)
+    print(dataframe.info())
+    print(map_df.head(5))
     temp_df = pd.merge(dataframe, map_df, left_on='Org Code', right_on='NHS ID code', how='inner')
     return temp_df
 
@@ -55,7 +58,7 @@ if __name__ == '__main__':
 
     # Load the DID spreadsheet from NHS Digital
 
-    file = xl.load_workbook('data\\Tables-1a-1l-2017-18-Modality-Provider-Counts-XLSX-222KB (1).xlsx')
+    file = xl.load_workbook('data\\Tables-1a-1l-2015-16-Modality-Provider-Counts-XLSX-284KB (2).xlsx')
 
     # Initialise a list to contain the datetime/sheet_name tuples
 
