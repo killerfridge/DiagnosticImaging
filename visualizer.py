@@ -4,6 +4,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 import pandas as pd
 from philips_colors import tableau_hex as tableau
+import plotly.graph_objs as go
 
 
 def table_view(df: pd.DataFrame, max_rows=10)->html.Table:
@@ -58,7 +59,7 @@ app.layout = html.Div(
                 value='Bath, Swindon and Wiltshire',
                 className='five columns',
             ),
-            dcc.Input(id='rolling_window', value=4, className='two columns'),
+            dcc.Input(id='rolling_window', value=3, className='two columns'),
             ]),
         html.Div(className='row', children=[
             dcc.Graph(className='six columns', id='CT_chart'),
@@ -148,7 +149,19 @@ def overall_ct(stp, window):
 
     return {
         'data': [
-            {'x': overall_df.index, 'y': overall_df['CT Activity'], 'type': 'bar', 'marker': {'color': colors}}
+            {'x': overall_df.index, 'y': overall_df['CT Activity'], 'type': 'bar', 'marker': {'color': colors},
+             'name': 'Activity'},
+            {
+                'x': overall_df.index,
+                'y': [overall_df['CT Activity'].mean() for _ in overall_df.index],
+                'type': 'scatter',
+                'line': {
+                    'dash': 'dot',
+                    'color': 'grey'
+                },
+                'mode': 'lines',
+                'name': 'Average Activity'
+            }
         ],
         'layout': {
             'title': 'CT Activity'
@@ -176,7 +189,18 @@ def overall_mr(stp, window):
 
     return {
         'data': [
-            {'x': overall_df.index, 'y': overall_df['MRI Activity'], 'type': 'bar', 'marker': {'color': colors}}
+            {'x': overall_df.index, 'y': overall_df['MRI Activity'], 'type': 'bar', 'marker': {'color': colors},
+             'name': 'Activity'},
+            go.Scatter(
+                x=overall_df.index,
+                y=[overall_df['MRI Activity'].mean() for _ in overall_df.index],
+                name='Average Activity',
+                line={
+                    'dash': 'dot',
+                    'color': 'grey',
+                },
+                mode='lines',
+            ),
         ],
         'layout': {
             'title': 'MRI Activity'
