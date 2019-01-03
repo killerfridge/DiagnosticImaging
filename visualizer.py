@@ -57,17 +57,28 @@ app.layout = html.Div(
                 options=options,
                 multi=False,
                 value='Bath, Swindon and Wiltshire',
-                className='five columns',
+                className='three columns',
             ),
-            dcc.Input(id='rolling_window', value=3, className='two columns'),
+            html.Div(className='two columns', children=['Rolling Period (Months):']),
+            dcc.Input(id='rolling_window', value=3, className='two columns', style={'align': 'left'}),
+            dcc.Dropdown(
+                id='activity_or_waiting',
+                options=[
+                    {'label': 'Activity', 'value': 'activity'},
+                    {'label': 'Waiting List', 'value': 'waiting'},
+                ],
+                multi=False,
+                value='activity',
+                className='two columns'
+            ),
             ]),
-        html.Div(className='row', children=[
-            dcc.Graph(className='six columns', id='CT_chart'),
-            dcc.Graph(className='six columns', id='MR_chart')
+        html.Div(className='rows', children=[
+            dcc.Graph(className='five columns', id='CT_chart'),
+            dcc.Graph(className='five columns', id='MR_chart')
         ]),
-        html.Div(className='row', children=[
-            dcc.Graph(className='six columns', id='CT_overall'),
-            dcc.Graph(className='six columns', id='MR_overall'),
+        html.Div(className='rows', children=[
+            dcc.Graph(className='five columns', id='CT_overall'),
+            dcc.Graph(className='five columns', id='MR_overall'),
         ])
     ]
 )
@@ -107,6 +118,7 @@ def update_ct(stp, window):
      Input('rolling_window', 'value')]
 )
 def update_mr(stp, window):
+
     try:
         window = int(window)
     except ValueError:
@@ -132,9 +144,15 @@ def update_mr(stp, window):
 @app.callback(
     Output('CT_overall', 'figure'),
     [Input('stp_selection', 'value'),
-     Input('rolling_window', 'value')]
+     Input('rolling_window', 'value'),
+     Input('activity_or_waiting', 'value')]
 )
-def overall_ct(stp, window):
+def overall_ct(stp, window, activity):
+
+    if activity == 'activity':
+        activity = 'CT Activity'
+    else:
+        activity = 'CT Waiting List'
 
     try:
         window = int(window)
@@ -143,28 +161,28 @@ def overall_ct(stp, window):
 
     overall_df = df_di_table.groupby(['STP', 'Period']).sum()
     overall_df = overall_df.groupby(level='STP').apply(lambda x: x.rolling(window).mean()).dropna()
-    overall_df = overall_df.groupby(level='STP').last().sort_values('CT Activity', ascending=False)
+    overall_df = overall_df.groupby(level='STP').last().sort_values(activity, ascending=False)
 
     colors = [tableau[2] if x == stp else tableau[0] for x in overall_df.index]
 
     return {
         'data': [
-            {'x': overall_df.index, 'y': overall_df['CT Activity'], 'type': 'bar', 'marker': {'color': colors},
+            {'x': overall_df.index, 'y': overall_df[activity], 'type': 'bar', 'marker': {'color': colors},
              'name': 'Activity'},
             {
                 'x': overall_df.index,
-                'y': [overall_df['CT Activity'].mean() for _ in overall_df.index],
+                'y': [overall_df[activity].mean() for _ in overall_df.index],
                 'type': 'scatter',
                 'line': {
                     'dash': 'dot',
-                    'color': 'grey'
+                    'color': 'black'
                 },
                 'mode': 'lines',
                 'name': 'Average Activity'
             }
         ],
         'layout': {
-            'title': 'CT Activity'
+            'title': f'{activity}<br>Compared to Other STPs'
         }
     }
 
@@ -172,9 +190,15 @@ def overall_ct(stp, window):
 @app.callback(
     Output('MR_overall', 'figure'),
     [Input('stp_selection', 'value'),
-     Input('rolling_window', 'value')]
+     Input('rolling_window', 'value'),
+     Input('activity_or_waiting', 'value')]
 )
-def overall_mr(stp, window):
+def overall_mr(stp, window, activity):
+
+    if activity=='activity':
+        activity = 'MRI Activity'
+    else:
+        activity = 'MRI Waiting List'
 
     try:
         window = int(window)
@@ -183,27 +207,27 @@ def overall_mr(stp, window):
 
     overall_df = df_di_table.groupby(['STP', 'Period']).sum()
     overall_df = overall_df.groupby(level='STP').apply(lambda x: x.rolling(window).mean()).dropna()
-    overall_df = overall_df.groupby(level='STP').last().sort_values('MRI Activity', ascending=False)
+    overall_df = overall_df.groupby(level='STP').last().sort_values(activity, ascending=False)
 
     colors = [tableau[2] if x == stp else tableau[0] for x in overall_df.index]
 
     return {
         'data': [
-            {'x': overall_df.index, 'y': overall_df['MRI Activity'], 'type': 'bar', 'marker': {'color': colors},
+            {'x': overall_df.index, 'y': overall_df[activity], 'type': 'bar', 'marker': {'color': colors},
              'name': 'Activity'},
             go.Scatter(
                 x=overall_df.index,
-                y=[overall_df['MRI Activity'].mean() for _ in overall_df.index],
+                y=[overall_df[activity].mean() for _ in overall_df.index],
                 name='Average Activity',
                 line={
                     'dash': 'dot',
-                    'color': 'grey',
+                    'color': 'black',
                 },
                 mode='lines',
             ),
         ],
         'layout': {
-            'title': 'MRI Activity'
+            'title': f'{activity}<br>Compared to Other STPs'
         }
     }
 
